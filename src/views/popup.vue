@@ -1,45 +1,68 @@
 <template>
-  <div>
-    <div class="sidenav p-0 flex justify-content-center flex-wrap">
+  <div class="sidenav p-0 flex justify-content-center flex-wrap">
+    <div class="w-2rem flex justify-content-center align-content-start flex-wrap">
       <Button v-tooltip="'說明'" class="h-2rem w-2rem flex align-items-center justify-content-center" icon="pi pi-ellipsis-v" severity="secondary" />
+      <div class="h-1rem w-2rem"></div>
+      <Button
+        v-tooltip="'DOM定位器(ctrl + Q)'"
+        class="h-2rem w-2rem flex align-items-center justify-content-center"
+        label="D"
+        :severity="isValidPage(currentUrl) ? 'info' : 'secondary'"
+        :disabled="!isValidPage(currentUrl)"
+        :outlined="!domLocatorEnable"
+        @click="toggleDomLocatorEnable()" />
     </div>
-    <div class="main">
-      <Button class="w-10rem" label="貓咪說嗨" @click="demoLoginFunction('CAT123')"></Button>
-    </div>
+  </div>
+  <div class="main">
+    <domlocator v-model="domLocatorMode" v-if="domLocatorEnable" @modeChange="updateDomLocatorStatus()"></domlocator>
   </div>
 </template>
 <script setup>
-import Button from 'primevue/button';
+import { computed, onMounted, ref, watch } from "vue";
+import Button from "primevue/button";
+import { isValidPage, sendTabMessage, setStorage, getStorage, deleteStorage } from "@/service/commonService";
+import domlocator from "@/components/domlocator.vue";
 
-function demoLoginFunction(account) {
+onMounted(() => {
+  loadCache();
+  initDomLocatorStatus();
+  getCurrentUrl();
+});
+
+const domLocatorEnable = ref(false);
+const domLocatorMode = ref("xPath");
+const currentUrl = ref();
+
+const getCurrentUrl = () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!isValidPage(tabs[0].url)) {
-      return;
-    }
-
-    chrome.tabs.sendMessage(
-      tabs[0].id,
-      {
-        action: 'autologin',
-        data: {
-          account: account,
-          pass: 'P@ssw0rd'
-        }
-      },
-      (response) => {
-        console.log('Response from content script:', response);
-      }
-    );
+    currentUrl.value = tabs[0].url;
   });
-}
+};
 
-const isValidPage = (tabsUrl) => {
-  const urlFilter = ['chrome://', 'chrome-extension://', 'edge://', 'about:blank'];
-  if (!tabsUrl || urlFilter.some((x) => tabsUrl.startsWith(x))) {
-    return false;
+const loadCache = async () => {
+  // _cacheStatus.value = (await getStorage("cache")) || _cacheStatus.value;
+  // router.push(`/${_cacheStatus.value.route}`);
+};
+const saveCache = () => {
+  // setStorage({ cache: _cacheStatus.value });
+};
+const deleteAllData = () => {
+  deleteStorage(["cache"]);
+};
+
+const toggleDomLocatorEnable = () => {
+  domLocatorEnable.value = !domLocatorEnable.value;
+  updateDomLocatorStatus();
+};
+const updateDomLocatorStatus = async () => {
+  sendTabMessage("updateDomLocatorStatus", { domLocatorEnable: domLocatorEnable.value, domLocatorMode: domLocatorMode.value });
+};
+const initDomLocatorStatus = async () => {
+  const response = await sendTabMessage("getDomLocatorStatus");
+  if (response) {
+    domLocatorEnable.value = response.message.domLocatorEnable;
+    domLocatorMode.value = response.message.domLocatorMode;
   }
-
-  return true;
 };
 </script>
 <style scoped>
