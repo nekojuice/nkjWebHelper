@@ -1,16 +1,28 @@
-// 分頁全域變數
+// ## 分頁全域變數
+let _enable = {};
+
 let domLocatorEnable = false;
 let domLocatorMode = "xPath";
 
 let referenceElementXPath;
 let targetElementXPath;
 
-// 事件監聽
-document.addEventListener("DOMContentLoaded", () => {});
+// ## 事件監聽
+document.addEventListener("DOMContentLoaded", async () => {});
 
-window.addEventListener("load", function () {
+window.addEventListener("load", async () => {
   console.log("nkjWebHelper 擴充功能已啟用");
-  document.addEventListener("keydown", handleHotKeyEvent);
+
+  _enable = (await getStorage("cache")) || _enable;
+
+  if (_enable.domLocatorHotkey) {
+    document.addEventListener("keydown", handleHotKeyEvent);
+  }
+  // && window.location.href == "https://www.youtube.com/"
+  if (_enable.nkjythelper) {
+    await delay(1000);
+    await monitorElementChanges("#contents", await getTargetElements(), labelstyle, 2000);
+  }
 });
 
 function handleHotKeyEvent(event) {
@@ -19,6 +31,7 @@ function handleHotKeyEvent(event) {
   }
 }
 
+// ## 元素定位器
 const updateDomLocatorStatus = (newEnable = null, newMode = null) => {
   // mode
   if (newMode != null && domLocatorMode != newMode) {
@@ -183,7 +196,62 @@ function getRelativeXPath(referenceXpath, targetXpath) {
   return targetXpath;
 }
 
-// tab message
+// ## nkjythelper
+async function labelstyle(element) {
+  // element.style.backgroundColor = "red";
+  element.style.display = "none";
+}
+async function getTargetElements() {
+  //const targetsByClassName = Array.from(
+  //  document.querySelectorAll('.style-scope.ytd-video-display-full-buttoned-and-button-group-renderer.yt-simple-endpoint')
+  //).map((el) => getParentAtLevel(el, 9));
+
+  const targetsByTagName = Array.from(document.querySelectorAll("ytd-ad-slot-renderer")).map((el) => getParentAtLevel(el, 2));
+
+  //return [...new Set([...targetsByClassName, ...targetsByTagName])].filter(Boolean);
+  return [...new Set([...targetsByTagName])].filter(Boolean);
+}
+
+async function getParentAtLevel(element, level) {
+  let current = element;
+  let count = 0;
+  while (current && count < level) {
+    current = current.parentElement;
+    count++;
+  }
+  return current;
+}
+
+async function monitorElementChanges(parentSelector, childElements, callback, bufferTime = 2000) {
+  const parentElement = document.querySelector(parentSelector);
+  if (!parentElement) return;
+
+  let timeoutId;
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const handleChanges = async () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(async () => {
+      await delay(bufferTime);
+
+      for (const child of childElements) await callback(await child);
+    }, 0);
+  };
+
+  new MutationObserver(handleChanges).observe(parentElement, { childList: true, subtree: true });
+}
+
+// ## 公用方法
+async function getStorage(key) {
+  const response = await chrome.runtime.sendMessage({ action: "getStorage", key: key });
+  return response.message;
+}
+
+async function delay(ms) {
+  new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ## tab message
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   // DOM locator
   if (request.action === "updateDomLocatorStatus") {
@@ -193,5 +261,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
   if (request.action == "getDomLocatorStatus") {
     sendResponse({ status: "success", message: { domLocatorEnable: domLocatorEnable, domLocatorMode: domLocatorMode } });
+  }
+
+  // init nkjythelper
+  if (request.action === "initNkjythelper") {
+    await monitorElementChanges("#contents", await getTargetElements(), labelstyle, 2000);
+    sendResponse({ status: "success" });
   }
 });
