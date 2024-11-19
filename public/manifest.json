@@ -1,0 +1,30 @@
+{
+    "manifest_version": 3,
+    "name": "nkjWebHelper",
+    "version": "1.0",
+    "description": "cat hi",
+    "icons": {
+        "128": "icons/nko128x128.png"
+    },
+    "action": {
+        "default_popup": "index.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ]
+}
