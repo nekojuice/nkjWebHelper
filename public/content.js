@@ -18,10 +18,12 @@ window.addEventListener("load", async () => {
   if (_enable.domLocatorHotkey) {
     document.addEventListener("keydown", handleHotKeyEvent);
   }
-  // && window.location.href == "https://www.youtube.com/"
-  if (_enable.nkjythelper) {
+  if (_enable.nkjythelper && window.location.href == "https://www.youtube.com/") {
     await delay(1000);
     await monitorElementChanges("#contents", await getTargetElements(), labelstyle, 2000);
+  }
+  if (_enable.drawUrl) {
+    initDrawUrlEventListener(250);
   }
 });
 
@@ -239,6 +241,122 @@ async function monitorElementChanges(parentSelector, childElements, callback, bu
   };
 
   new MutationObserver(handleChanges).observe(parentElement, { childList: true, subtree: true });
+}
+
+// ## drawUrl
+async function initDrawUrlEventListener(longPressDelay = 1000) {
+  let mouseDownTimer = null;
+  let isLongPress = false;
+  let overlay = null;
+
+  // 儲存事件處理函數的參考
+  const eventHandlers = {
+    mousedown: null,
+    mouseup: null,
+    contextmenu: null,
+    mouseout: null
+  };
+
+  // 建立遮罩元素
+  function createOverlay() {
+    overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.backgroundColor = "rgba(128, 128, 128, 0)";
+    overlay.style.transition = "all 500ms ease";
+    overlay.style.pointerEvents = "none";
+    overlay.style.zIndex = "9999";
+    document.body.appendChild(overlay);
+    overlay.getBoundingClientRect();
+  }
+
+  // 顯示遮罩動畫
+  async function showOverlay() {
+    if (!overlay) {
+      createOverlay();
+    }
+    await delay(50);
+    requestAnimationFrame(() => {
+      overlay.style.backgroundColor = "rgba(128, 128, 128, 0.5)";
+    });
+  }
+
+  // 移除遮罩
+  function removeOverlay() {
+    if (overlay) {
+      overlay.remove();
+      overlay = null;
+    }
+  }
+
+  // 滑鼠右鍵按下事件
+  eventHandlers.mousedown = async (e) => {
+    if (e.button === 2) {
+      isLongPress = false;
+      mouseDownTimer = setTimeout(async () => {
+        isLongPress = true;
+        await showOverlay();
+      }, longPressDelay);
+    }
+  };
+
+  // 滑鼠右鍵放開事件
+  eventHandlers.mouseup = (e) => {
+    if (e.button === 2) {
+      clearTimeout(mouseDownTimer);
+      if (isLongPress) {
+        removeOverlay();
+      }
+    }
+  };
+
+  // 防止顯示預設的右鍵選單
+  eventHandlers.contextmenu = (e) => {
+    if (isLongPress) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  };
+
+  // 滑鼠移出視窗時清除計時器和遮罩
+  eventHandlers.mouseout = (e) => {
+    if (e.relatedTarget === null) {
+      clearTimeout(mouseDownTimer);
+      if (isLongPress) {
+        removeOverlay();
+        isLongPress = false;
+      }
+    }
+  };
+
+  // 綁定所有事件
+  document.addEventListener("mousedown", eventHandlers.mousedown);
+  document.addEventListener("mouseup", eventHandlers.mouseup);
+  document.addEventListener("contextmenu", eventHandlers.contextmenu);
+  document.addEventListener("mouseout", eventHandlers.mouseout);
+
+  // 回傳移除事件的方法
+  return function removeDrawUrlEventListener() {
+    // 清除所有相關狀態
+    clearTimeout(mouseDownTimer);
+    removeOverlay();
+    isLongPress = false;
+
+    // 移除所有事件監聽器
+    document.removeEventListener("mousedown", eventHandlers.mousedown);
+    document.removeEventListener("mouseup", eventHandlers.mouseup);
+    document.removeEventListener("contextmenu", eventHandlers.contextmenu);
+    document.removeEventListener("mouseout", eventHandlers.mouseout);
+
+    // 清空事件處理函數
+    Object.keys(eventHandlers).forEach((key) => {
+      eventHandlers[key] = null;
+    });
+  };
 }
 
 // ## 公用方法

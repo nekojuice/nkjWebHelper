@@ -25,6 +25,10 @@
             <ToggleSwitch v-model="_enable.nkjythelper" @change="saveCache" />
             <label class="ml-2">nkjythelper</label>
           </div>
+          <div class="flex items-center">
+            <ToggleSwitch v-model="_enable.drawUrl" @change="saveCache" />
+            <label class="ml-2">drawUrl</label>
+          </div>
         </div></template
       ></Card
     >
@@ -45,7 +49,7 @@ onMounted(() => {
   getCurrentUrl();
 });
 
-const _enable = ref({ domLocatorHotkey: false, nkjythelper: false });
+const _enable = ref({ domLocatorHotkey: false, nkjythelper: false, drawUrl: false });
 
 const domLocatorEnable = ref(false);
 const domLocatorMode = ref("xPath");
