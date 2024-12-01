@@ -315,7 +315,7 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
     centerCircle.setAttribute("cx", center.x);
     centerCircle.setAttribute("cy", center.y);
     centerCircle.setAttribute("r", "50");
-    centerCircle.setAttribute("fill", "rgba(200,200,200,0.8)");
+    centerCircle.setAttribute("fill", "rgba(255,165,0,0.8)");
     centerCircle.setAttribute("stroke", "rgba(128,128,128,1)");
     centerCircle.setAttribute("stroke-width", "2");
     centerCircle.setAttribute("data-index", "-1"); // 加入 data-index 屬性
@@ -338,10 +338,10 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
     const anglePerAction = 360 / totalActions;
 
     actions.forEach((action, index) => {
-      const startAngle = index * anglePerAction - 90;
-      const endAngle = (index + 1) * anglePerAction - 90;
+      const startAngle = index * anglePerAction;
+      const endAngle = (index + 1) * anglePerAction;
 
-      const sector = createSector(center.x, center.y, 300, startAngle, endAngle, action.label, index);
+      const sector = createSector(center.x, center.y, 150, startAngle, endAngle, action.label, index);
       svg.appendChild(sector);
     });
 
@@ -398,29 +398,36 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
 
     // 更新hover效果
     const angle = calcAngle(startPoint, { x: e.clientX, y: e.clientY });
-    const hoveredIndex = selectSectorIndexByAngle(svg, angle);
+    const hoveredIndex = distance <= 50 ? -1 : selectSectorIndexByAngle(svg, angle);
 
     if (currentHoverIndex !== hoveredIndex) {
-      // 重置之前的顏色
-      if (currentHoverIndex !== -1) {
-        const prevSector = svg.querySelector(`g[data-index="${currentHoverIndex}"] path`);
+      const centerCircle = svg.querySelector("circle");
+      const prevSector = svg.querySelector(`g[data-index="${currentHoverIndex}"] path`);
+
+      if (distance <= 50) {
+        if (centerCircle) {
+          centerCircle.setAttribute("fill", "rgba(255,165,0,0.8)");
+        }
         if (prevSector) {
           prevSector.setAttribute("fill", `rgba(128,128,128,0.3)`);
         }
       }
-
-      // 如果距離大於50px且找到扇形
-      const currentSector = svg.querySelector(`g[data-index="${hoveredIndex}"] path`);
-      const centerCircle = svg.querySelector("circle");
-      if (distance > 50 && hoveredIndex !== -1) {
-        if (currentSector) {
-          currentSector.setAttribute("fill", "rgba(255,165,0,0.7)");
+      if (distance > 50) {
+        if (centerCircle) {
           centerCircle.setAttribute("fill", "rgba(128,128,128,0.8)");
         }
-      } else if (distance <= 50) {
-        // 中心圓高亮
-        if (centerCircle) {
-          centerCircle.setAttribute("fill", "rgba(255,165,0,0.8)");
+        if (currentHoverIndex !== -1) {
+          if (prevSector) {
+            prevSector.setAttribute("fill", `rgba(128,128,128,0.3)`);
+          }
+        }
+
+        // 如果距離大於50px且找到扇形
+        const currentSector = svg.querySelector(`g[data-index="${hoveredIndex}"] path`);
+        if (distance > 50 && hoveredIndex !== -1) {
+          if (currentSector) {
+            currentSector.setAttribute("fill", "rgba(255,165,0,0.7)");
+          }
         }
       }
 
@@ -439,7 +446,8 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
 
         if (selectedAction) {
           if (selectedAction.action === "link") {
-            window.open(selectedAction.data, "_blank");
+            window.location.replace(selectedAction.data);
+            // window.open(selectedAction.data, "_blank");
           }
         }
       }
@@ -479,15 +487,17 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
       overlay = null;
     }
     document.removeEventListener("mousemove", eventHandlers.mousemove);
-    isLongPress = false;
     currentHoverIndex = -1;
   }
 
   eventHandlers.contextmenu = (e) => {
-    // 阻止預設右鍵選單
-    e.preventDefault();
     clearTimeout(mouseDownTimer);
     removeRadialMenu();
+
+    if (isLongPress) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   document.addEventListener("mousedown", eventHandlers.mousedown);
@@ -504,8 +514,8 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
 
 // 使用範例
 const actions = [
-  { label: "Youtube", action: "link", data: "https://www.youtube.com/" },
   { label: "Google", action: "link", data: "https://www.google.com/" },
+  { label: "Youtube", action: "link", data: "https://www.youtube.com/" },
   { label: "GitHub", action: "link", data: "https://github.com/" },
   { label: "ChatGPT", action: "link", data: "https://chat.openai.com/" }
 ];
