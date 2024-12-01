@@ -18,9 +18,9 @@ window.addEventListener("load", async () => {
   if (_enable.domLocatorHotkey) {
     document.addEventListener("keydown", handleHotKeyEvent);
   }
-  if (_enable.nkjythelper && window.location.href == "https://www.youtube.com/") {
+  if (_enable.nkjythelper) {
     await delay(1000);
-    await monitorElementChanges("#contents", await getTargetElements(), labelstyle, 2000);
+    initNkjythelper();
   }
   if (_enable.drawUrl) {
     initDrawUrlEventListener(250);
@@ -34,7 +34,7 @@ function handleHotKeyEvent(event) {
 }
 
 // ## 元素定位器
-const updateDomLocatorStatus = (newEnable = null, newMode = null) => {
+function updateDomLocatorStatus(newEnable = null, newMode = null) {
   // mode
   if (newMode != null && domLocatorMode != newMode) {
     domLocatorMode = newMode;
@@ -54,7 +54,7 @@ const updateDomLocatorStatus = (newEnable = null, newMode = null) => {
     document.removeEventListener("click", domLocatorEvent, { capture: true });
     console.log(`dom定位器已停用`);
   }
-};
+}
 
 function domLocatorEvent(event) {
   event.stopPropagation();
@@ -199,48 +199,55 @@ function getRelativeXPath(referenceXpath, targetXpath) {
 }
 
 // ## nkjythelper
-async function labelstyle(element) {
-  // element.style.backgroundColor = "red";
-  element.style.display = "none";
-}
-async function getTargetElements() {
-  //const targetsByClassName = Array.from(
-  //  document.querySelectorAll('.style-scope.ytd-video-display-full-buttoned-and-button-group-renderer.yt-simple-endpoint')
-  //).map((el) => getParentAtLevel(el, 9));
-
-  const targetsByTagName = Array.from(document.querySelectorAll("ytd-ad-slot-renderer")).map((el) => getParentAtLevel(el, 2));
-
-  //return [...new Set([...targetsByClassName, ...targetsByTagName])].filter(Boolean);
-  return [...new Set([...targetsByTagName])].filter(Boolean);
-}
-
-async function getParentAtLevel(element, level) {
-  let current = element;
-  let count = 0;
-  while (current && count < level) {
-    current = current.parentElement;
-    count++;
+async function initNkjythelper() {
+  if (window.location.href == "https://www.youtube.com/") {
+    await monitorElementChanges("#contents", await getTargetElements(), labelstyle, 2000);
   }
-  return current;
-}
 
-async function monitorElementChanges(parentSelector, childElements, callback, bufferTime = 2000) {
-  const parentElement = document.querySelector(parentSelector);
-  if (!parentElement) return;
+  async function monitorElementChanges(parentSelector, childElements, callback, bufferTime = 2000) {
+    const parentElement = document.querySelector(parentSelector);
+    if (!parentElement) return;
 
-  let timeoutId;
-  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    let timeoutId;
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const handleChanges = async () => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(async () => {
-      await delay(bufferTime);
+    const handleChanges = async () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        await delay(bufferTime);
 
-      for (const child of childElements) await callback(await child);
-    }, 0);
-  };
+        for (const child of childElements) await callback(await child);
+      }, 0);
+    };
 
-  new MutationObserver(handleChanges).observe(parentElement, { childList: true, subtree: true });
+    new MutationObserver(handleChanges).observe(parentElement, { childList: true, subtree: true });
+  }
+
+  async function getTargetElements() {
+    //const targetsByClassName = Array.from(
+    //  document.querySelectorAll('.style-scope.ytd-video-display-full-buttoned-and-button-group-renderer.yt-simple-endpoint')
+    //).map((el) => getParentAtLevel(el, 9));
+
+    const targetsByTagName = Array.from(document.querySelectorAll("ytd-ad-slot-renderer")).map((el) => getParentAtLevel(el, 2));
+
+    //return [...new Set([...targetsByClassName, ...targetsByTagName])].filter(Boolean);
+    return [...new Set([...targetsByTagName])].filter(Boolean);
+  }
+
+  async function getParentAtLevel(element, level) {
+    let current = element;
+    let count = 0;
+    while (current && count < level) {
+      current = current.parentElement;
+      count++;
+    }
+    return current;
+  }
+
+  async function labelstyle(element) {
+    element.style.backgroundColor = "red";
+    element.style.display = "none";
+  }
 }
 
 // ## drawUrl
@@ -256,6 +263,28 @@ async function initDrawUrlEventListener(longPressDelay = 1000) {
     contextmenu: null,
     mouseout: null
   };
+
+  // 滑鼠右鍵按下事件
+  eventHandlers.mousedown = async (e) => {
+    if (e.button === 2) {
+      isLongPress = false;
+      mouseDownTimer = setTimeout(async () => {
+        isLongPress = true;
+        await showOverlay();
+      }, longPressDelay);
+    }
+  };
+
+  // 顯示遮罩動畫
+  async function showOverlay() {
+    if (!overlay) {
+      createOverlay();
+    }
+    await delay(50);
+    requestAnimationFrame(() => {
+      overlay.style.backgroundColor = "rgba(128, 128, 128, 0.5)";
+    });
+  }
 
   // 建立遮罩元素
   function createOverlay() {
@@ -273,36 +302,6 @@ async function initDrawUrlEventListener(longPressDelay = 1000) {
     overlay.getBoundingClientRect();
   }
 
-  // 顯示遮罩動畫
-  async function showOverlay() {
-    if (!overlay) {
-      createOverlay();
-    }
-    await delay(50);
-    requestAnimationFrame(() => {
-      overlay.style.backgroundColor = "rgba(128, 128, 128, 0.5)";
-    });
-  }
-
-  // 移除遮罩
-  function removeOverlay() {
-    if (overlay) {
-      overlay.remove();
-      overlay = null;
-    }
-  }
-
-  // 滑鼠右鍵按下事件
-  eventHandlers.mousedown = async (e) => {
-    if (e.button === 2) {
-      isLongPress = false;
-      mouseDownTimer = setTimeout(async () => {
-        isLongPress = true;
-        await showOverlay();
-      }, longPressDelay);
-    }
-  };
-
   // 滑鼠右鍵放開事件
   eventHandlers.mouseup = (e) => {
     if (e.button === 2) {
@@ -313,14 +312,13 @@ async function initDrawUrlEventListener(longPressDelay = 1000) {
     }
   };
 
-  // 防止顯示預設的右鍵選單
-  eventHandlers.contextmenu = (e) => {
-    if (isLongPress) {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
+  // 移除遮罩
+  function removeOverlay() {
+    if (overlay) {
+      overlay.remove();
+      overlay = null;
     }
-  };
+  }
 
   // 滑鼠移出視窗時清除計時器和遮罩
   eventHandlers.mouseout = (e) => {
@@ -330,6 +328,15 @@ async function initDrawUrlEventListener(longPressDelay = 1000) {
         removeOverlay();
         isLongPress = false;
       }
+    }
+  };
+
+  // 防止顯示預設的右鍵選單
+  eventHandlers.contextmenu = (e) => {
+    if (isLongPress) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
     }
   };
 
@@ -383,7 +390,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
   // init nkjythelper
   if (request.action === "initNkjythelper") {
-    await monitorElementChanges("#contents", await getTargetElements(), labelstyle, 2000);
+    initNkjythelper();
     sendResponse({ status: "success" });
   }
 });
