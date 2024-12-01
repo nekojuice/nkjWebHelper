@@ -251,120 +251,266 @@ async function initNkjythelper() {
 }
 
 // ## drawUrl
-async function initDrawUrlEventListener(longPressDelay = 1000) {
+// initDrawUrlEventListener
+async function initRadialMenu(actions = [], longPressDelay = 250) {
   let mouseDownTimer = null;
   let isLongPress = false;
   let overlay = null;
+  let startPoint = { x: 0, y: 0 };
+  let svg = null;
+  let currentHoverIndex = -1;
 
-  // 儲存事件處理函數的參考
   const eventHandlers = {
     mousedown: null,
     mouseup: null,
     contextmenu: null,
-    mouseout: null
+    mouseout: null,
+    mousemove: null
   };
 
-  // 滑鼠右鍵按下事件
   eventHandlers.mousedown = async (e) => {
     if (e.button === 2) {
       isLongPress = false;
+      startPoint = { x: e.clientX, y: e.clientY };
       mouseDownTimer = setTimeout(async () => {
         isLongPress = true;
-        await showOverlay();
+        await showRadialMenu(startPoint);
+        document.addEventListener("mousemove", eventHandlers.mousemove);
       }, longPressDelay);
     }
   };
 
-  // 顯示遮罩動畫
-  async function showOverlay() {
+  async function showRadialMenu(center) {
     if (!overlay) {
-      createOverlay();
+      overlay = createOverlay();
     }
-    await delay(50);
-    requestAnimationFrame(() => {
-      overlay.style.backgroundColor = "rgba(128, 128, 128, 0.5)";
-    });
+    svg = createSVG(center, actions);
+    overlay.appendChild(svg);
   }
 
-  // 建立遮罩元素
   function createOverlay() {
-    overlay = document.createElement("div");
+    const overlay = document.createElement("div");
     overlay.style.position = "fixed";
     overlay.style.top = "0";
     overlay.style.left = "0";
     overlay.style.width = "100%";
     overlay.style.height = "100%";
-    overlay.style.backgroundColor = "rgba(128, 128, 128, 0)";
-    overlay.style.transition = "all 500ms ease";
-    overlay.style.pointerEvents = "none";
+    overlay.style.backgroundColor = "rgba(128, 128, 128, 0.5)";
+    overlay.style.pointerEvents = "auto";
     overlay.style.zIndex = "9999";
     document.body.appendChild(overlay);
-    overlay.getBoundingClientRect();
+    return overlay;
   }
 
-  // 滑鼠右鍵放開事件
-  eventHandlers.mouseup = (e) => {
-    if (e.button === 2) {
-      clearTimeout(mouseDownTimer);
-      if (isLongPress) {
-        removeOverlay();
+  function createSVG(center, actions) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", "100%");
+    svg.style.position = "absolute";
+    svg.style.top = "0";
+    svg.style.left = "0";
+
+    // 中心圓，使用非半透明灰色，並調高圖層
+    const centerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    centerCircle.setAttribute("cx", center.x);
+    centerCircle.setAttribute("cy", center.y);
+    centerCircle.setAttribute("r", "50");
+    centerCircle.setAttribute("fill", "rgba(200,200,200,0.8)");
+    centerCircle.setAttribute("stroke", "rgba(128,128,128,1)");
+    centerCircle.setAttribute("stroke-width", "2");
+    centerCircle.setAttribute("data-index", "-1"); // 加入 data-index 屬性
+    svg.appendChild(centerCircle);
+
+    // 中心圓的標籤
+    const centerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    centerText.setAttribute("x", center.x);
+    centerText.setAttribute("y", center.y);
+    centerText.setAttribute("text-anchor", "middle");
+    centerText.setAttribute("alignment-baseline", "middle");
+    centerText.setAttribute("fill", "black");
+    centerText.textContent = "";
+    svg.appendChild(centerText);
+
+    // 當沒有動作時不進行繪製
+    if (actions.length === 0) return svg;
+
+    const totalActions = actions.length;
+    const anglePerAction = 360 / totalActions;
+
+    actions.forEach((action, index) => {
+      const startAngle = index * anglePerAction - 90;
+      const endAngle = (index + 1) * anglePerAction - 90;
+
+      const sector = createSector(center.x, center.y, 300, startAngle, endAngle, action.label, index);
+      svg.appendChild(sector);
+    });
+
+    return svg;
+  }
+
+  function createSector(centerX, centerY, radius, startAngle, endAngle, label, index) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.dataset.index = index;
+
+    // 扇形路徑
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+
+    const x1 = centerX + radius * Math.cos(startRad);
+    const y1 = centerY + radius * Math.sin(startRad);
+    const x2 = centerX + radius * Math.cos(endRad);
+    const y2 = centerY + radius * Math.sin(endRad);
+
+    const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+
+    const d = [`M ${centerX} ${centerY}`, `L ${x1} ${y1}`, `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`, `Z`].join(" ");
+
+    path.setAttribute("d", d);
+    path.setAttribute("fill", `rgba(128,128,128,0.3)`);
+    path.setAttribute("stroke", "white");
+    path.setAttribute("stroke-width", "1");
+    group.appendChild(path);
+
+    // 標籤
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const midAngle = (startAngle + endAngle) / 2;
+    const midRad = (midAngle * Math.PI) / 180;
+    const textRadius = radius * 0.7;
+    const textX = centerX + textRadius * Math.cos(midRad);
+    const textY = centerY + textRadius * Math.sin(midRad);
+
+    text.setAttribute("x", textX);
+    text.setAttribute("y", textY);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("alignment-baseline", "middle");
+    text.setAttribute("fill", "black");
+    text.textContent = label;
+    group.appendChild(text);
+
+    return group;
+  }
+
+  eventHandlers.mousemove = (e) => {
+    if (!isLongPress) return;
+
+    const distance = Math.sqrt(Math.pow(e.clientX - startPoint.x, 2) + Math.pow(e.clientY - startPoint.y, 2));
+
+    // 更新hover效果
+    const angle = calcAngle(startPoint, { x: e.clientX, y: e.clientY });
+    const hoveredIndex = selectSectorIndexByAngle(svg, angle);
+
+    if (currentHoverIndex !== hoveredIndex) {
+      // 重置之前的顏色
+      if (currentHoverIndex !== -1) {
+        const prevSector = svg.querySelector(`g[data-index="${currentHoverIndex}"] path`);
+        if (prevSector) {
+          prevSector.setAttribute("fill", `rgba(128,128,128,0.3)`);
+        }
       }
+
+      // 如果距離大於50px且找到扇形
+      const currentSector = svg.querySelector(`g[data-index="${hoveredIndex}"] path`);
+      const centerCircle = svg.querySelector("circle");
+      if (distance > 50 && hoveredIndex !== -1) {
+        if (currentSector) {
+          currentSector.setAttribute("fill", "rgba(255,165,0,0.7)");
+          centerCircle.setAttribute("fill", "rgba(128,128,128,0.8)");
+        }
+      } else if (distance <= 50) {
+        // 中心圓高亮
+        if (centerCircle) {
+          centerCircle.setAttribute("fill", "rgba(255,165,0,0.8)");
+        }
+      }
+
+      currentHoverIndex = hoveredIndex;
     }
   };
 
-  // 移除遮罩
-  function removeOverlay() {
+  eventHandlers.mouseup = (e) => {
+    if (e.button === 2 && isLongPress) {
+      const distance = Math.sqrt(Math.pow(e.clientX - startPoint.x, 2) + Math.pow(e.clientY - startPoint.y, 2));
+
+      // 超出50px範圍才觸發
+      if (distance > 50) {
+        const angle = calcAngle(startPoint, { x: e.clientX, y: e.clientY });
+        const selectedAction = selectActionByAngle(actions, angle);
+
+        if (selectedAction) {
+          if (selectedAction.action === "link") {
+            window.open(selectedAction.data, "_blank");
+          }
+        }
+      }
+
+      clearTimeout(mouseDownTimer);
+      removeRadialMenu();
+    }
+  };
+
+  function calcAngle(center, point) {
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    // 調整角度，使12點鐘方向為0度
+    angle = (angle + 360) % 360;
+    return angle;
+  }
+
+  function selectActionByAngle(actions, angle) {
+    if (actions.length === 0) return null;
+    const anglePerAction = 360 / actions.length;
+    const index = Math.floor(angle / anglePerAction);
+    return actions[index];
+  }
+
+  function selectSectorIndexByAngle(svg, angle) {
+    if (!svg) return -1;
+    const g = svg.querySelectorAll("g[data-index]");
+    const anglePerAction = 360 / g.length;
+    const index = Math.floor(angle / anglePerAction);
+    return index;
+  }
+
+  function removeRadialMenu() {
     if (overlay) {
       overlay.remove();
       overlay = null;
     }
+    document.removeEventListener("mousemove", eventHandlers.mousemove);
+    isLongPress = false;
+    currentHoverIndex = -1;
   }
 
-  // 滑鼠移出視窗時清除計時器和遮罩
-  eventHandlers.mouseout = (e) => {
-    if (e.relatedTarget === null) {
-      clearTimeout(mouseDownTimer);
-      if (isLongPress) {
-        removeOverlay();
-        isLongPress = false;
-      }
-    }
-  };
-
-  // 防止顯示預設的右鍵選單
   eventHandlers.contextmenu = (e) => {
-    if (isLongPress) {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
-    }
+    // 阻止預設右鍵選單
+    e.preventDefault();
+    clearTimeout(mouseDownTimer);
+    removeRadialMenu();
   };
 
-  // 綁定所有事件
   document.addEventListener("mousedown", eventHandlers.mousedown);
   document.addEventListener("mouseup", eventHandlers.mouseup);
   document.addEventListener("contextmenu", eventHandlers.contextmenu);
-  document.addEventListener("mouseout", eventHandlers.mouseout);
 
-  // 回傳移除事件的方法
-  return function removeDrawUrlEventListener() {
-    // 清除所有相關狀態
-    clearTimeout(mouseDownTimer);
-    removeOverlay();
-    isLongPress = false;
-
-    // 移除所有事件監聽器
+  return function removeRadialMenuListener() {
+    removeRadialMenu();
     document.removeEventListener("mousedown", eventHandlers.mousedown);
     document.removeEventListener("mouseup", eventHandlers.mouseup);
     document.removeEventListener("contextmenu", eventHandlers.contextmenu);
-    document.removeEventListener("mouseout", eventHandlers.mouseout);
-
-    // 清空事件處理函數
-    Object.keys(eventHandlers).forEach((key) => {
-      eventHandlers[key] = null;
-    });
   };
 }
+
+// 使用範例
+const actions = [
+  { label: "Youtube", action: "link", data: "https://www.youtube.com/" },
+  { label: "Google", action: "link", data: "https://www.google.com/" },
+  { label: "GitHub", action: "link", data: "https://github.com/" },
+  { label: "ChatGPT", action: "link", data: "https://chat.openai.com/" }
+];
+
+const removeListener = initRadialMenu(actions);
 
 // ## 公用方法
 async function getStorage(key) {
