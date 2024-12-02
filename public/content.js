@@ -310,28 +310,7 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
     svg.style.top = "0";
     svg.style.left = "0";
 
-    // 中心圓，使用非半透明灰色，並調高圖層
-    const centerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    centerCircle.setAttribute("cx", center.x);
-    centerCircle.setAttribute("cy", center.y);
-    centerCircle.setAttribute("r", "50");
-    centerCircle.setAttribute("fill", "rgba(255,165,0,0.8)");
-    centerCircle.setAttribute("stroke", "rgba(128,128,128,1)");
-    centerCircle.setAttribute("stroke-width", "2");
-    centerCircle.setAttribute("data-index", "-1"); // 加入 data-index 屬性
-    svg.appendChild(centerCircle);
-
-    // 中心圓的標籤
-    const centerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    centerText.setAttribute("x", center.x);
-    centerText.setAttribute("y", center.y);
-    centerText.setAttribute("text-anchor", "middle");
-    centerText.setAttribute("alignment-baseline", "middle");
-    centerText.setAttribute("fill", "black");
-    centerText.textContent = "";
-    svg.appendChild(centerText);
-
-    // 當沒有動作時不進行繪製
+    // 繪製扇形元素
     if (actions.length === 0) return svg;
 
     const totalActions = actions.length;
@@ -344,6 +323,27 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
       const sector = createSector(center.x, center.y, 150, startAngle, endAngle, action.label, index);
       svg.appendChild(sector);
     });
+
+    // 中心圓，使用非半透明灰色
+    const centerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    centerCircle.setAttribute("cx", center.x);
+    centerCircle.setAttribute("cy", center.y);
+    centerCircle.setAttribute("r", "50");
+    centerCircle.setAttribute("fill", "rgba(255,165,0,1)");
+    centerCircle.setAttribute("stroke", "rgba(128,128,128,1)");
+    centerCircle.setAttribute("stroke-width", "2");
+    centerCircle.setAttribute("data-index", "-1"); // 加入 data-index 屬性
+    svg.appendChild(centerCircle);
+
+    // 中心圓的標籤
+    const centerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    centerText.setAttribute("x", center.x);
+    centerText.setAttribute("y", center.y);
+    centerText.setAttribute("text-anchor", "middle");
+    centerText.setAttribute("alignment-baseline", "middle");
+    centerText.setAttribute("fill", "white");
+    centerText.textContent = "取消";
+    svg.appendChild(centerText);
 
     return svg;
   }
@@ -384,7 +384,7 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
     text.setAttribute("y", textY);
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("alignment-baseline", "middle");
-    text.setAttribute("fill", "black");
+    text.setAttribute("fill", "white");
     text.textContent = label;
     group.appendChild(text);
 
@@ -406,7 +406,7 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
 
       if (distance <= 50) {
         if (centerCircle) {
-          centerCircle.setAttribute("fill", "rgba(255,165,0,0.8)");
+          centerCircle.setAttribute("fill", "rgba(255,165,0,1)");
         }
         if (prevSector) {
           prevSector.setAttribute("fill", `rgba(128,128,128,0.3)`);
@@ -414,7 +414,7 @@ async function initRadialMenu(actions = [], longPressDelay = 250) {
       }
       if (distance > 50) {
         if (centerCircle) {
-          centerCircle.setAttribute("fill", "rgba(128,128,128,0.8)");
+          centerCircle.setAttribute("fill", "rgba(128,128,128,1)");
         }
         if (currentHoverIndex !== -1) {
           if (prevSector) {

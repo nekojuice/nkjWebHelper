@@ -29,10 +29,35 @@
             <ToggleSwitch v-model="_enable.drawUrl" @change="saveCache" />
             <label class="ml-2">drawUrl</label>
           </div>
-        </div></template
-      ></Card
-    >
-    <domlocator v-model="domLocatorMode" v-if="domLocatorEnable" @modeChange="updateDomLocatorStatus()"></domlocator>
+        </div>
+      </template>
+    </Card>
+
+    <!-- <Card>
+      <template #content>
+        <DataTable :value="products" editMode="cell" @cell-edit-complete="onCellEditComplete">
+          <Column field="label" header="label" style="width: 20%">
+            <template #editor="{ data, field }">
+              <InputText v-model="data[field]" fluid />
+            </template>
+          </Column>
+          <Column field="inventoryStatus" header="Status" style="width: 20%">
+            <template #editor="{ data, field }">
+              <Select v-model="data[field]" :options="statuses" optionLabel="label" optionValue="value" placeholder="Select a Status" fluid>
+                <template #option="slotProps">
+                  <Tag :value="slotProps.option.value" />
+                </template>
+              </Select>
+            </template>
+            <template #body="slotProps">
+              <Tag :value="slotProps.data.inventoryStatus" />
+            </template>
+          </Column>
+        </DataTable>
+      </template>
+    </Card> -->
+
+    <domlocator v-model="domLocatorMode" v-if="domLocatorEnable" @modeChange="updateDomLocatorStatus()" />
   </div>
 </template>
 <script setup>
@@ -40,6 +65,10 @@ import { computed, onMounted, ref, watch } from "vue";
 import Button from "primevue/button";
 import ToggleSwitch from "primevue/toggleswitch";
 import Card from "primevue/card";
+import InputText from "primevue/inputtext";
+import Tag from "primevue/tag";
+import Select from "primevue/select";
+
 import { isValidPage, sendTabMessage, setStorage, getStorage, deleteStorage } from "@/service/commonService";
 import domlocator from "@/components/domlocator.vue";
 
@@ -50,6 +79,7 @@ onMounted(() => {
 });
 
 const _enable = ref({ domLocatorHotkey: false, nkjythelper: false, drawUrl: false });
+const _radialMenu = ref([]);
 
 const domLocatorEnable = ref(false);
 const domLocatorMode = ref("xPath");
